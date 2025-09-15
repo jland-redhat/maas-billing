@@ -343,7 +343,14 @@ main() {
         
         # Deploy Kuadrant operators first
         log_info "Deploying Kuadrant operators..."
-        kustomize build infrastructure/kustomize-templates/kuadrant | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        # Use OpenShift overlay if on OpenShift, otherwise use base configuration
+        if kubectl get ingresses.config.openshift.io cluster &>/dev/null; then
+            log_info "OpenShift detected - using OpenShift-specific Kuadrant configuration"
+            envsubst '${CLUSTER_DOMAIN}' < infrastructure/overlays/openshift/kuadrant-openshift-filtered.yaml | kubectl apply -f -
+        else
+            log_info "Using standard Kuadrant configuration"
+            kustomize build infrastructure/kustomize-templates/kuadrant | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        filtered
         log_success "Kuadrant operators deployed"
         
         # Wait for operators to be ready
@@ -353,9 +360,18 @@ main() {
         kubectl wait --for=condition=available deployment/authorino-operator -n kuadrant-system --timeout=300s
         log_success "All operators are ready"
         
-        # Deploy using overlay (always use OpenShift overlay for external access)
-        log_info "Deploying $DEPLOYMENT_TYPE with external access..."
-        kustomize build overlays/openshift | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        # Deploy infrastructure first, then examples
+        log_info "Deploying infrastructure with OpenShift overlay..."
+        kustomize build infrastructure/overlays/openshift | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        
+        # Deploy the specific deployment examples (models, auth, etc.)
+        if kubectl get ingresses.config.openshift.io cluster &>/dev/null; then
+            log_info "Deploying $DEPLOYMENT_TYPE examples for OpenShift..."
+            kustomize build examples/${DEPLOYMENT_TYPE}-deployment-openshift | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        else
+            log_info "Deploying $DEPLOYMENT_TYPE examples..."
+            kustomize build examples/${DEPLOYMENT_TYPE}-deployment | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        fi
         log_success "Deployment completed successfully!"
     else
         log_info "Skipping infrastructure installation (use --install-infra to install)"
@@ -369,12 +385,28 @@ main() {
         
         # Apply Kuadrant configuration (CRs) after dependencies installed it via Helm
         log_info "Configuring Kuadrant CRs..."
-        kustomize build infrastructure/kustomize-templates/kuadrant | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        # Use OpenShift overlay if on OpenShift, otherwise use base configuration
+        if kubectl get ingresses.config.openshift.io cluster &>/dev/null; then
+            log_info "OpenShift detected - using OpenShift-specific Kuadrant configuration"
+            envsubst '${CLUSTER_DOMAIN}' < infrastructure/overlays/openshift/kuadrant-openshift-filtered.yaml | kubectl apply -f -
+        else
+            log_info "Using standard Kuadrant configuration"
+            kustomize build infrastructure/kustomize-templates/kuadrant | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        fi
         log_success "Kuadrant configured"
         
-        # Deploy using overlay (always use OpenShift overlay for external access)
-        log_info "Deploying $DEPLOYMENT_TYPE with external access..."
-        kustomize build overlays/openshift | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        # Deploy infrastructure first, then examples
+        log_info "Deploying infrastructure with OpenShift overlay..."
+        kustomize build infrastructure/overlays/openshift | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        
+        # Deploy the specific deployment examples (models, auth, etc.)
+        if kubectl get ingresses.config.openshift.io cluster &>/dev/null; then
+            log_info "Deploying $DEPLOYMENT_TYPE examples for OpenShift..."
+            kustomize build examples/${DEPLOYMENT_TYPE}-deployment-openshift | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        else
+            log_info "Deploying $DEPLOYMENT_TYPE examples..."
+            kustomize build examples/${DEPLOYMENT_TYPE}-deployment | envsubst '${CLUSTER_DOMAIN}' | kubectl apply -f -
+        fi
         log_success "Deployment completed successfully!"
     fi
     

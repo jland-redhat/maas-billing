@@ -55,8 +55,7 @@ EOF
 
   # Wait for the operator deployment to be available
   echo "⏳ Waiting for Grafana operator deployment..."
-  timeout 300s bash -c 'until kubectl get deployment grafana-operator-controller-manager -n openshift-operators &>/dev/null; do echo "Waiting for operator deployment..."; sleep 10; done'
-  kubectl wait --for=condition=Available deployment/grafana-operator-controller-manager -n openshift-operators --timeout=300s
+  timeout 300s bash -c 'until kubectl get deployment -l app.kubernetes.io/name=grafana-operator &>/dev/null; do echo "Waiting for operator deployment..."; sleep 10; done'
 
   echo "✅ Grafana operator is installed and running"
 
