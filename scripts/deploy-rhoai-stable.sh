@@ -312,7 +312,7 @@ metadata:
   name: maas-api
 EOF
 
-: "${MAAS_REF:=main}"
+: "${MAAS_REF:=v0.1.0}"
 kubectl apply --server-side=true \
   -f <(kustomize build "https://github.com/opendatahub-io/models-as-a-service.git/deployment/overlays/openshift?ref=${MAAS_REF}" | \
        envsubst '$CLUSTER_DOMAIN')
